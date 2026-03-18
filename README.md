@@ -8,7 +8,7 @@
 -   Tiền xử lý: Chuẩn hóa dữ liệu phù hợp input KNN/CNN.
 -   Mô hình:
 #### Với CNN
-+       Xây dựng mô hình CNN đơn giản gồm:
+-   Xây dựng mô hình CNN đơn giản gồm:
             2 lớp Convolution + MaxPooling.
             1 lớp Fully Connected (Dense).
             Lớp Softmax đầu ra 10 lớp.
@@ -17,7 +17,7 @@
 -   Đánh giá mô hình: Accuracy trên tập test, vẽ confusion matrix để phân tích lỗi.
 -   Công cụ: Python, TensorFlow/Keras, Google Colab.
 #### Với KNN
-+       Xây dựng mô hình KNN
+-   Xây dựng mô hình KNN
             Tính khoảng cách dựa trên khoảng cách euclid
             Chọn giá trị K bằng cách lập hàm đánh giá độ chính xác của thuật toán dựa trên các giá trị K khác nhau
             Đưa ra nhãn dự đoán và so sánh với nhãn thật
