@@ -1,0 +1,6 @@
+# Bỏ qua thư viện của Node.js
+node_modules/
+
+# Bỏ qua các file thực thi của C++
+*.exe
+*.o
