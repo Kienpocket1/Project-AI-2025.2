@@ -85,4 +85,9 @@ Hệ thống đã qua kiểm thử với nhiều kịch bản khác nhau:
 - **Độ chính xác:** Khớp hoàn toàn với sơ đồ tuyến thực tế của Metro Madrid.
 - **Xử lý ngoại lệ:** Chống sập khi dữ liệu tọa độ bị thiếu hoặc lỗi kết nối Server.
 
+## Đề xuất thêm về dự án
+Hệ thống cần có thêm:
+- **Nếu như ga tàu bảo trì hoặc sửa chửa thì các con đường tối ưu sẽ như thế nào?
+- **Phân bổ lịch trình đoàn tàu của quản lý cho người dùng (Giờ cao điểm, giờ thấp điểm, tần suất chuyến) || ở mục này sẽ có 2 trang : user (người dùng xem được lịch trình, thời gian tàu chạy) và admin (quản lý chuyến tàu) hệ thống sẽ đưa cho người dùng tuyến đường phù hợp cho người dùng
+- Nếu như cần xây tuyến đường mới nên xây thêm ở đâu để tối ưu thêm những tuyến đường cho người dân 
 ***
