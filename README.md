@@ -52,10 +52,13 @@ Hệ thống sử dụng lõi thuật toán tìm kiếm **A* (A-Star)** để t�
 * **MySQL Server** (XAMPP hoặc MySQL Workbench).
 
 ### 2. Thiết lập Database (MySQL)
-
-1. Mở MySQL, tạo database tên `metro_madrid`.
-2. Tạo bảng `Users` (id, username, password, role) và bảng `KhungGioCaoDiem` (id, gio_bat_dau, gio_ket_thuc, he_so_luu_luong, thoi_gian_cho_tau).
-3. (Tùy chọn) Thêm sẵn một tài khoản có `role = 'admin'` để truy cập trang quản trị.
+1. Khởi động MySQL Server (thông qua XAMPP hoặc MySQL Workbench).
+2. Tạo một database mới (trống) với tên là `metro_madrid`:
+   ```sql
+   CREATE DATABASE metro_madrid;
+   USE metro_madrid;
+3. Import file database.sql (nằm ở thư mục gốc của dự án) vào database vừa tạo.
+(Lưu ý: File này đã chứa sẵn toàn bộ cấu trúc bảng, các kịch bản Giờ cao điểm và dữ liệu tài khoản Admin để test hệ thống).
 
 ### 3. Thiết lập Backend
 
