@@ -1,0 +1,14 @@
+# Bỏ qua thư viện của Node.js (Cực kỳ nặng)
+node_modules/
+
+# Bỏ qua các file biên dịch của C++ (Mỗi máy một khác, tự biên dịch lại)
+*.exe
+*.o
+*.out
+
+# Bỏ qua file build của giao diện React
+dist/
+build/
+
+# Bỏ qua file môi trường chứa pass (nếu có)
+.env

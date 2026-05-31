@@ -1,45 +1,50 @@
-import { useState, useEffect } from 'react';
-import Sidebar from './components/Sidebar';
-import MapView from './components/MapView';
-import { getRoute, getStations } from './services/api'; // Import thêm getStations
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-export default function App() {
-  const [routeData, setRouteData] = useState(null);
-  const [allStations, setAllStations] = useState([]); // Lưu toàn bộ ga để hiện lên map
-  const [loading, setLoading] = useState(false);
+import UserDashboard from './UserDashboard'; 
+import AdminDashboard from './components/Admin/AdminDashboard'; 
+import AuthPage from './components/AuthPage'; 
 
-  // Hút dữ liệu ngay khi vào trang
-  useEffect(() => {
-    const loadStations = async () => {
-      const data = await getStations();
-      if (Array.isArray(data)) setAllStations(data);
-    };
-    loadStations();
-  }, []);
+const ProtectedRoute = ({ children, requireAdmin }) => {
+  const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
 
-  const handleSearch = async (start, end, mode) => {
-    setLoading(true);
-    setRouteData(null);
-    try {
-      const data = await getRoute(start, end, mode);
-      setRouteData(data);
-    } catch (error) {
-      setRouteData({ status: 'error', message: 'Lỗi kết nối Server.' });
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (!token) {
+    return <Navigate to="/auth" replace />;
+  }
 
+  if (requireAdmin && role !== 'admin') {
+    // CHỖ SỬA SỐ 1: Bị đuổi thì văng về trang /user thay vì /
+    return <Navigate to="/user" replace />;
+  }
+
+  return children;
+};
+
+function App() {
   return (
-    <div className="flex w-full h-screen overflow-hidden bg-slate-50 font-sans">
-      <Sidebar onSearch={handleSearch} loading={loading} resultData={routeData} />
-      <div className="flex-1 h-full relative z-10 bg-slate-200">
-        <MapView
-          allStations={allStations} // Truyền toàn bộ ga
-          pathData={routeData?.path || []}
-          totalTime={routeData?.total_time || 0}
-        />
-      </div>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/auth" element={<AuthPage />} />
+
+        {/* CHỖ SỬA SỐ 2: Nếu ai đó gõ mỗi localhost:5173/, tự động bế họ sang /user */}
+        <Route path="/" element={<Navigate to="/user" replace />} />
+
+        {/* CHỖ SỬA SỐ 3: Đổi nhà mới cho User sang đường dẫn /user */}
+        <Route path="/user" element={
+          <ProtectedRoute>
+            <UserDashboard />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin" element={
+          <ProtectedRoute requireAdmin={true}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
+      </Routes>
+    </BrowserRouter>
   );
 }
+
+export default App;

@@ -63,7 +63,7 @@ const MapView = ({ allStations = [], pathData = [], totalTime }) => {
   };
 
   return (
-    <div className="h-full w-full relative">
+    <div className="h-screen w-full relative">
       <MapContainer center={center} zoom={13} className="h-full w-full z-0">
         {positions.length > 0 && <ChangeView positions={positions} />}
         

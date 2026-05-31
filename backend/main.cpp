@@ -1,4 +1,4 @@
-// thuật toán A (A-Star Search)*, kết hợp với xử lý Đồ thị đa tiêu chí (Multi-objective Graph)
+// Thuật toán A* (A-Star Search) - Tích hợp Đồ thị phụ thuộc thời gian (Time-Dependent Routing) - BẢN BỌC THÉP CHỐNG SẬP
 #include <iostream>
 #include <vector>
 #include <string>
@@ -17,29 +17,45 @@ struct AStarNode {
     int id; double f_score; double g_score;
     bool operator>(const AStarNode& other) const { return f_score > other.f_score; }
 };
+struct PeakHour {
+    int start_sec, end_sec;
+    double multiplier, extra_wait;
+};
 
 unordered_map<int, Node> graph_nodes;
 unordered_map<int, vector<Edge>> adj_list;
+vector<PeakHour> peak_hours;
 
 double toRadians(double degree) { return degree * (M_PI / 180.0); }
 
-// Sử dụng công thức Công thức Haversine để tính khoảng cách giữa hai điểm trên bề mặt Trái Đất
 double heuristic(int u, int target) {
     double lat1 = toRadians(graph_nodes[u].lat), lon1 = toRadians(graph_nodes[u].lon);
     double lat2 = toRadians(graph_nodes[target].lat), lon2 = toRadians(graph_nodes[target].lon);
     double R = 6371000.0;
     double dLat = lat2 - lat1, dLon = lon2 - lon1;
     double a = sin(dLat / 2) * sin(dLat / 2) + cos(lat1) * cos(lat2) * sin(dLon / 2) * sin(dLon / 2);
-    return (R * 2 * atan2(sqrt(a), sqrt(1 - a))) / 10.0;
+    return (R * 2 * atan2(sqrt(a), sqrt(1 - a))) / 20.0; 
 }
 
-// mode = 1: Tìm đường đi ngắn nhất về thời gian, mode = 2: Tìm đường đi ít chuyển tuyến nhất
-// Thuật toán A* với xử lý Đồ thị đa tiêu chí
-void findPathAStar(int start_id, int goal_id, int mode) {
+// BỌC THÉP 1: Chống sập khi truyền sai format giờ 
+int parseTime(string time_str) {
+    if (time_str.length() < 5) return 0;
+    try {
+        int h = stoi(time_str.substr(0, 2));
+        int m = stoi(time_str.substr(3, 2));
+        return h * 3600 + m * 60;
+    } catch (...) {
+        return 0; 
+    }
+}
 
-    auto start_time = chrono::high_resolution_clock::now(); // Bắt đầu đo thời gian chạy thuật toán A*
+void findPathAStar(int start_id, int goal_id, int mode, int start_time_sec) {
+    if (graph_nodes.find(start_id) == graph_nodes.end() || graph_nodes.find(goal_id) == graph_nodes.end()) {
+        cout << "{\"status\": \"error\", \"message\": \"Not found\"}";
+        return;
+    }
 
-    // g_score[u]: chi phí từ start đến u, f_score[u]: g_score[u] + heuristic(u, goal)
+    auto start_time_bench = chrono::high_resolution_clock::now(); 
     unordered_map<int, double> g_score;
     unordered_map<int, int> came_from;
     priority_queue<AStarNode, vector<AStarNode>, greater<AStarNode>> open_set;
@@ -49,37 +65,36 @@ void findPathAStar(int start_id, int goal_id, int mode) {
     open_set.push({start_id, heuristic(start_id, goal_id), 0});
 
     while (!open_set.empty()) {
-        // 1. Lấy ga có tổng chi phí dự kiến F(n) nhỏ nhất
         int u = open_set.top().id;
         double current_g = open_set.top().g_score;
         open_set.pop();
 
-        // Nếu ga này là ga đích, ta đã tìm được đường đi ngắn nhất
         if (graph_nodes[u].name == graph_nodes[goal_id].name) {
-
-            // Kết thúc đo thời gian chạy thuật toán A*
-            auto end_time = chrono::high_resolution_clock::now();
-            chrono::duration<double, std::milli> elapsed = end_time - start_time;
-
-            cerr << "\n[BENCHMARK] Tu " << start_id << " den " << goal_id 
-                 << " | Mode " << mode 
-                 << " | Thoi gian chay A*: " << elapsed.count() << " ms\n";
-                 
             vector<pair<int, double>> path_with_time; 
             vector<bool> path_is_transfer; 
             
             int curr = u;
             double total_actual_time = 0;
 
-            // Truy vết đường đi từ ga đích về ga xuất phát
             while (curr != start_id) {
                 int prev = came_from[curr];
                 double weight_to_curr = 0;
                 bool transfer_to_curr = false;
 
+                int time_of_day = (start_time_sec + (int)g_score[prev]) % 86400;
+                double mult = 1.0;
+                double wait = 0.0;
+                for (const auto& ph : peak_hours) {
+                    if (time_of_day >= ph.start_sec && time_of_day <= ph.end_sec) {
+                        mult = ph.multiplier;
+                        wait = ph.extra_wait;
+                        break;
+                    }
+                }
+
                 for (const auto& edge : adj_list[prev]) { 
                     if (edge.to == curr) { 
-                        weight_to_curr = edge.weight; 
+                        weight_to_curr = (edge.weight * mult) + (edge.is_transfer ? wait : 0); 
                         transfer_to_curr = edge.is_transfer;
                         break; 
                     } 
@@ -92,11 +107,9 @@ void findPathAStar(int start_id, int goal_id, int mode) {
             path_with_time.push_back({start_id, 0});
             path_is_transfer.push_back(false);
             
-            // Đảo ngược đường đi để xuất từ ga xuất phát đến ga đích
             reverse(path_with_time.begin(), path_with_time.end());
             reverse(path_is_transfer.begin(), path_is_transfer.end());
 
-            // Xuất kết quả theo định dạng JSON
             cout << "{";
             cout << "\"status\": \"success\",";
             cout << "\"total_time\": " << total_actual_time << ",";
@@ -120,20 +133,31 @@ void findPathAStar(int start_id, int goal_id, int mode) {
             return;
         }
 
-        // 2. Cắt tỉa: Nếu chi phí g(n) của ga này đã lớn hơn chi phí g(n) đã biết trước đó, bỏ qua
         if (current_g > g_score[u]) continue;
 
-        // 3. Mở rộng: Duyệt qua tất cả các ga kề của ga này
-        for (const auto& edge : adj_list[u]) {
-            // Tính chi phí để đi từ ga này đến ga kề, tùy theo mode mà có thể ưu tiên ít chuyển tuyến hơn hoặc thời gian ngắn hơn
-            double cost = (mode == 2) ? (edge.is_transfer ? 10000.0 : 1.0) : edge.weight;
+        int current_time_of_day = (start_time_sec + (int)g_score[u]) % 86400;
+        double mult = 1.0;
+        double wait = 0.0;
+        
+        for (const auto& ph : peak_hours) {
+            if (current_time_of_day >= ph.start_sec && current_time_of_day <= ph.end_sec) {
+                mult = ph.multiplier;
+                wait = ph.extra_wait;
+                break;
+            }
+        }
 
-            // 4. Cập nhật chi phí g(n) và f(n) nếu tìm được đường đi tốt hơn đến ga kề
+        for (const auto& edge : adj_list[u]) {
+            double cost = 0;
+            if (mode == 2) {
+                cost = edge.is_transfer ? (10000.0 + wait) : (1.0 * mult);
+            } else {
+                cost = (edge.weight * mult) + (edge.is_transfer ? wait : 0);
+            }
+
             if (g_score[u] + cost < g_score[edge.to]) {
                 came_from[edge.to] = u;
                 g_score[edge.to] = g_score[u] + cost;
-                
-                // 5. F(n) = g(n) + h(n), trong đó h(n) là hàm heuristic ước lượng chi phí từ ga kề đến ga đích
                 open_set.push({edge.to, g_score[edge.to] + heuristic(edge.to, goal_id), g_score[edge.to]});
             }
         }
@@ -142,33 +166,52 @@ void findPathAStar(int start_id, int goal_id, int mode) {
 }
 
 int main(int argc, char* argv[]) {
-    // Đọc tham số đầu vào: start_id, end_id, mode
     if (argc < 4) return 1;
     int start = stoi(argv[1]);
     int end = stoi(argv[2]);
     int mode = stoi(argv[3]);
+    
+    // BỌC THÉP 2: Chống sập nếu Web quên truyền giờ xuống
+    int start_time_sec = (argc >= 5) ? parseTime(argv[4]) : 0; 
 
-    // Mở kết nối đến cơ sở dữ liệu SQLite và tải dữ liệu ga tàu và kết nối vào bộ nhớ
     sqlite3* db;
     sqlite3_open("metro_madrid.db", &db);
+    sqlite3_stmt* stmt = nullptr;
+
+    // BỌC THÉP 3: Chống sập nếu bảng KhungGioCaoDiem chưa tồn tại
+    if (sqlite3_prepare_v2(db, "SELECT gio_bat_dau, gio_ket_thuc, he_so_luu_luong, thoi_gian_cho_tau FROM KhungGioCaoDiem;", -1, &stmt, nullptr) == SQLITE_OK) {
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            string t_start = (const char*)sqlite3_column_text(stmt, 0);
+            string t_end = (const char*)sqlite3_column_text(stmt, 1);
+            peak_hours.push_back({
+                parseTime(t_start), parseTime(t_end),
+                sqlite3_column_double(stmt, 2), sqlite3_column_double(stmt, 3)
+            });
+        }
+        sqlite3_finalize(stmt);
+    }
     
-    // Tải dữ liệu ga tàu vào graph_nodes
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, "SELECT node_id, stop_name, stop_lat, stop_lon FROM Tram;", -1, &stmt, nullptr);
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        int id = sqlite3_column_int(stmt, 0);
-        graph_nodes[id] = {id, (const char*)sqlite3_column_text(stmt, 1), sqlite3_column_double(stmt, 2), sqlite3_column_double(stmt, 3)};
+    // Tải Ga
+    if (sqlite3_prepare_v2(db, "SELECT node_id, stop_name, stop_lat, stop_lon FROM Tram WHERE status = 1;", -1, &stmt, nullptr) == SQLITE_OK) {
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            int id = sqlite3_column_int(stmt, 0);
+            graph_nodes[id] = {id, (const char*)sqlite3_column_text(stmt, 1), sqlite3_column_double(stmt, 2), sqlite3_column_double(stmt, 3)};
+        }
+        sqlite3_finalize(stmt);
     }
-    sqlite3_finalize(stmt);
 
-    // Tải dữ liệu kết nối vào adj_list, chỉ lấy thời gian di chuyển ngắn nhất giữa mỗi cặp ga
-    sqlite3_prepare_v2(db, "SELECT u, v, MIN(travel_time) FROM Ket_Noi GROUP BY u, v;", -1, &stmt, nullptr);
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        adj_list[sqlite3_column_int(stmt, 0)].push_back({sqlite3_column_int(stmt, 1), sqlite3_column_double(stmt, 2), false});
+    // Tải Kết nối
+    if (sqlite3_prepare_v2(db, "SELECT u, v, MIN(travel_time) FROM Ket_Noi GROUP BY u, v;", -1, &stmt, nullptr) == SQLITE_OK) {
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            int u = sqlite3_column_int(stmt, 0), v = sqlite3_column_int(stmt, 1);
+            if (graph_nodes.count(u) && graph_nodes.count(v)) {
+                adj_list[u].push_back({v, sqlite3_column_double(stmt, 2), false});
+            }
+        }
+        sqlite3_finalize(stmt);
     }
-    sqlite3_finalize(stmt);
 
-    // Thêm các cạnh chuyển tuyến giữa các ga có cùng tên
+    // Thêm cạnh đi bộ
     for (auto& u : graph_nodes) {
         for (auto& v : graph_nodes) {
             if (u.first != v.first && u.second.name == v.second.name) {
@@ -177,9 +220,14 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    findPathAStar(start, end, mode);
+    // --- GẮN KÍNH LÚP DEBUG VÀO ĐÂY ---
+    cerr << "\n================ DEBUG THÔNG TIN ================\n";
+    cerr << "1. Gio khoi hanh (tinh bang giay): " << start_time_sec << "\n";
+    cerr << "2. So khung gio cao diem trong DB: " << peak_hours.size() << "\n";
+    cerr << "=================================================\n";
 
-    // Đóng kết nối đến cơ sở dữ liệu SQLite
+    findPathAStar(start, end, mode, start_time_sec);
+
     sqlite3_close(db);
     return 0;
 }

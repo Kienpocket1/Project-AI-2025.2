@@ -19,8 +19,11 @@
   },
   "homepage": "https://github.com/Kienpocket1/Project-AI-2025.2#readme",
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.22.3",
     "sqlite3": "^6.0.1"
   }
 }
